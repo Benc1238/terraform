@@ -2,6 +2,87 @@ provider "aws" {
   region = "us-east-1"
 }
 
+resource "aws_vpc" "vpc" {
+    cidr_block = "10.0.0.0/24"
+    tags = {
+        Name = "terraformVPC"
+    }
+}
+
+resource "aws_subnet" "pub-sub" {
+    vpc_id = aws_vpc.vpc.id
+    cidr_block = "10.0.0.0/25"
+    map_public_ip_on_launch = true
+    availability_zone = "us-east-1"
+    tags = {
+        Name = "public-Subnet-Terraform"
+    }
+}
+
+resource "aws_subnet" "priv-sub" {
+    vpc_id = aws_vpc.vpc.id
+    cidr_block = "10.0.0.128/25"
+    map_public_ip_on_launch = true
+    availability_zone = "us-east-1"
+    tags = {
+        Name = "private-Subnet-Terraform"
+    }
+}
+
+resource "aws_route_table" "public-route" {
+    vpc_id = aws_vpc.vpc.id
+    tags = {
+        Name = "pub-route"
+    }
+}
+
+resource "aws_route_table" "private-route" {
+    vpc_id = aws_vpc.vpc.id
+    tags = {
+        Name = "priv-route"
+    }
+}
+
+resource "aws_route_table_association" "public-association" {
+    route_table_id = aws_route_table.public-route.id
+    subnet_id      = aws_subnet.pub-sub.id
+}
+
+resource "aws_route_table_association" "private-association" {
+    route_table_id = aws_route_table.private-route.id
+    subnet_id      = aws_subnet.priv-sub.id
+}
+
+resource "aws_internet_gateway" "igw" {
+    vpc_id = aws_vpc.vpc.id
+    tags = {
+        Name = "igwFromTerraform"
+    }
+}
+
+resource "aws_route" "route-pub" {
+    route_table_id         = aws_route_table.public-route.id
+    destination_cidr_block = "0.0.0.0/0"
+    gateway_id             = aws_internet_gateway.igw.id
+}
+
+resource "aws_security_group" "sg" {
+    vpc_id = aws_vpc.vpc.id
+    name   = "terraformSG"
+    ingress {
+        from_port   = 0
+        protocol    = "-1"
+        to_port     = 0
+        cidr_blocks = ["0.0.0.0/0"]
+    }
+    egress {
+        from_port   = 0
+        protocol    = "-1"
+        to_port     = 0
+        cidr_blocks = ["0.0.0.0/0"]
+    }
+}
+
 resource "aws_instance" "bastion" {
   ami           = "ami-xxxxxxxxxxxxxxxxx" # AMI for bastion host
   instance_type = "t2.micro"
@@ -81,32 +162,4 @@ resource "aws_db_instance" "rds" {
   password             = "password"
   publicly_accessible  = false
   db_subnet_group_name = "your_db_subnet_group"
-  vpc_security_group_ids = [aws_security_group.db_sg.id]
-}
-
-resource "aws_security_group_rule" "ingress_ssh" {
-  security_group_id = aws_security_group.sg.id
-  type             = "ingress"
-  from_port        = 22
-  to_port          = 22
-  protocol         = "tcp"
-  cidr_blocks      = ["your_ip_address/32"]
-}
-
-resource "aws_security_group_rule" "ingress_bastion" {
-  security_group_id = aws_security_group.sg.id
-  type             = "ingress"
-  from_port        = 0
-  to_port          = 0
-  protocol         = "-1"
-  source_security_group_id = aws_security_group.sg.id
-}
-
-resource "aws_security_group_rule" "ingress_app" {
-  security_group_id = aws_security_group.sg.id
-  type             = "ingress"
-  from_port        = 80
-  to_port          = 80
-  protocol         = "tcp"
-  cidr_blocks      = ["0.0.0.0/0"]
-}
+  vpc_security_group_ids = [aws_security_
