@@ -82,28 +82,28 @@ resource "aws_security_group" "sg" {
         cidr_blocks = ["0.0.0.0/0"]
     }
 }
-
 resource "aws_instance" "bastion" {
-  ami           = "ami-xxxxxxxxxxxxxxxxx" # AMI for bastion host
+  ami           = "ami-xxxxxxxxxxxxxxxxx"
   instance_type = "t2.micro"
   key_name      = "vockey"
   subnet_id     = aws_subnet.pub-sub.id
-  security_group_ids = [aws_security_group.sg.id]
+  vpc_security_group_ids = [aws_security_group.sg.id]
   tags = {
     Name = "bastion"
   }
 }
 
 resource "aws_instance" "app_instance" {
-  ami           = "ami-xxxxxxxxxxxxxxxxx" # AMI for your application
+  ami           = "ami-xxxxxxxxxxxxxxxxx"
   instance_type = "t2.micro"
   subnet_id     = aws_subnet.priv-sub.id
-  security_group_ids = [aws_security_group.sg.id]
+  vpc_security_group_ids = [aws_security_group.sg.id]
   key_name      = "vockey"
   tags = {
     Name = "app-instance"
   }
 }
+
 
 resource "aws_autoscaling_group" "app_asg" {
   desired_capacity     = 2
@@ -113,13 +113,16 @@ resource "aws_autoscaling_group" "app_asg" {
   launch_configuration = aws_instance.app_instance.id
 }
 
+
 resource "aws_lb" "app_lb" {
   name               = "app-lb"
   internal           = false
   load_balancer_type = "application"
+  subnets            = [aws_subnet.priv-sub.id]
   security_groups    = [aws_security_group.sg.id]
   enable_deletion_protection = false
 }
+
 
 resource "aws_lb_listener" "app_lb_listener" {
   load_balancer_arn = aws_lb.app_lb.arn
@@ -157,9 +160,9 @@ resource "aws_db_instance" "rds" {
   engine               = "mysql"
   engine_version       = "5.7"
   instance_class       = "db.t2.micro"
-  name                 = "mydatabase"
   username             = "admin"
   password             = "password"
   publicly_accessible  = false
   db_subnet_group_name = "your_db_subnet_group"
-  vpc_security_group_ids = [aws_security_
+  vpc_security_group_ids = [aws_security_group.db_sg.id]
+}
