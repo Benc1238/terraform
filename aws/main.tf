@@ -13,7 +13,7 @@ resource "aws_subnet" "pub-sub" {
     vpc_id = aws_vpc.vpc.id
     cidr_block = "10.0.0.0/25"
     map_public_ip_on_launch = true
-    availability_zone = "us-east-1"
+    availability_zone = "us-east-1a"
     tags = {
         Name = "public-Subnet-Terraform"
     }
@@ -23,7 +23,7 @@ resource "aws_subnet" "priv-sub" {
     vpc_id = aws_vpc.vpc.id
     cidr_block = "10.0.0.128/25"
     map_public_ip_on_launch = true
-    availability_zone = "us-east-1"
+    availability_zone = "us-east-1a"
     tags = {
         Name = "private-Subnet-Terraform"
     }
@@ -47,7 +47,6 @@ resource "aws_route_table_association" "public-association" {
     route_table_id = aws_route_table.public-route.id
     subnet_id      = aws_subnet.pub-sub.id
 }
-
 resource "aws_route_table_association" "private-association" {
     route_table_id = aws_route_table.private-route.id
     subnet_id      = aws_subnet.priv-sub.id
@@ -83,7 +82,7 @@ resource "aws_security_group" "sg" {
     }
 }
 resource "aws_instance" "bastion" {
-  ami           = "ami-xxxxxxxxxxxxxxxxx"
+  ami           = "ami-08e637cea2f053dfa"
   instance_type = "t2.micro"
   key_name      = "vockey"
   subnet_id     = aws_subnet.pub-sub.id
@@ -94,7 +93,7 @@ resource "aws_instance" "bastion" {
 }
 
 resource "aws_instance" "app_instance" {
-  ami           = "ami-xxxxxxxxxxxxxxxxx"
+  ami           = "ami-08e637cea2f053dfa"
   instance_type = "t2.micro"
   subnet_id     = aws_subnet.priv-sub.id
   vpc_security_group_ids = [aws_security_group.sg.id]
@@ -114,13 +113,23 @@ resource "aws_autoscaling_group" "app_asg" {
 }
 
 
+resource "aws_subnet" "pub-sub-b" {
+    vpc_id = aws_vpc.vpc.id
+    cidr_block = "10.0.0.128/25"
+    map_public_ip_on_launch = true
+    availability_zone = "us-east-1b"  # Dodaj drugą strefę dostępności
+    tags = {
+        Name = "public-Subnet-Terraform-B"
+    }
+}
+
 resource "aws_lb" "app_lb" {
-  name               = "app-lb"
-  internal           = false
-  load_balancer_type = "application"
-  subnets            = [aws_subnet.priv-sub.id]
-  security_groups    = [aws_security_group.sg.id]
-  enable_deletion_protection = false
+    name               = "app-lb"
+    internal           = false
+    load_balancer_type = "application"
+    subnets            = [aws_subnet.priv-sub.id, aws_subnet.pub-sub-b.id]  # Użyj obu subnets
+    security_groups    = [aws_security_group.sg.id]
+    enable_deletion_protection = false
 }
 
 
@@ -153,16 +162,21 @@ resource "aws_security_group" "db_sg" {
   }
 }
 
+resource "aws_db_subnet_group" "my_db_subnet_group" {
+    name       = "my-db-subnet-group"
+    subnet_ids = [aws_subnet.priv-sub.id, aws_subnet.pub-sub.id]  # Użyj istniejących subnets
+}
+
 resource "aws_db_instance" "rds" {
-  identifier           = "my-rds-instance"
-  allocated_storage    = 20
-  storage_type         = "gp2"
-  engine               = "mysql"
-  engine_version       = "5.7"
-  instance_class       = "db.t2.micro"
-  username             = "admin"
-  password             = "password"
-  publicly_accessible  = false
-  db_subnet_group_name = "your_db_subnet_group"
-  vpc_security_group_ids = [aws_security_group.db_sg.id]
+    identifier           = "my-rds-instance"
+    allocated_storage    = 20
+    storage_type         = "gp2"
+    engine               = "mysql"
+    engine_version       = "5.7"
+    instance_class       = "db.t2.micro"
+    username             = "admin"
+    password             = "password"
+    publicly_accessible  = false
+    db_subnet_group_name = aws_db_subnet_group.my_db_subnet_group.name  # Użyj nowo utworzonej grupy podsieci
+    vpc_security_group_ids = [aws_security_group.db_sg.id]
 }
