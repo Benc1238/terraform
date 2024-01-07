@@ -104,24 +104,39 @@ resource "aws_instance" "app_instance" {
 }
 
 
+resource "aws_launch_configuration" "app_lc" {
+  name                 = "app-launch-config"
+  image_id             = "ami-08e637cea2f053dfa"
+  instance_type        = "t2.micro"
+  key_name             = "vockey"
+  security_groups      = [aws_security_group.sg.id]
+  // inne konfiguracje dla launch configuration
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 resource "aws_autoscaling_group" "app_asg" {
   desired_capacity     = 2
   max_size             = 4
   min_size             = 1
   vpc_zone_identifier = [aws_subnet.priv-sub.id]
-  launch_configuration = aws_instance.app_instance.id
+  launch_configuration = aws_launch_configuration.app_lc.id
 }
+
 
 
 resource "aws_subnet" "pub-sub-b" {
-    vpc_id = aws_vpc.vpc.id
-    cidr_block = "10.0.0.128/25"
-    map_public_ip_on_launch = true
-    availability_zone = "us-east-1b"  # Dodaj drugą strefę dostępności
-    tags = {
-        Name = "public-Subnet-Terraform-B"
-    }
+  vpc_id = aws_vpc.vpc.id
+  cidr_block = "10.0.0.128/26"  # Zmiana CIDR na unikalny zakres
+  map_public_ip_on_launch = true
+  availability_zone = "us-east-1b"
+  tags = {
+    Name = "public-Subnet-Terraform-B"
+  }
 }
+
 
 resource "aws_lb" "app_lb" {
     name               = "app-lb"
@@ -144,12 +159,11 @@ resource "aws_lb_listener" "app_lb_listener" {
   }
 }
 
-resource "aws_lb_target_group" "app_tg" {
-  name     = "app-tg"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = aws_vpc.vpc.id
+resource "aws_db_subnet_group" "my_db_subnet_group" {
+    name       = "my-db-subnet-group"
+    subnet_ids = [aws_subnet.priv-sub.id, aws_subnet.pub-sub-b.id]  # Dodaj kolejny subnet w innej strefie dostępności
 }
+
 
 resource "aws_security_group" "db_sg" {
   vpc_id = aws_vpc.vpc.id
