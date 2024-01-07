@@ -48,7 +48,7 @@ resource "aws_security_group" "bastion_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["77.222.231.103/32"]
+    cidr_blocks = ["IP/32"]
   }
 
   tags = {
@@ -79,10 +79,10 @@ resource "aws_security_group" "app_sg" {
   }
 
   ingress {
-    from_port             = 3306
-    to_port               = 3306
-    protocol              = "tcp"
-    source_security_group_ids = [aws_security_group.bastion_sg.id]
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    #security_groups = [aws_security_group.bastion_sg.id]
   }
 
   egress {
