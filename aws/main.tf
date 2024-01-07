@@ -148,6 +148,13 @@ resource "aws_lb" "app_lb" {
 }
 
 
+resource "aws_lb_target_group" "app_tg" {
+  name     = "app-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.vpc.id
+}
+
 resource "aws_lb_listener" "app_lb_listener" {
   load_balancer_arn = aws_lb.app_lb.arn
   port              = 80
@@ -158,6 +165,7 @@ resource "aws_lb_listener" "app_lb_listener" {
     type             = "forward"
   }
 }
+
 
 resource "aws_db_subnet_group" "my_db_subnet_group" {
     name       = "my-db-subnet-group"
