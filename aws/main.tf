@@ -48,7 +48,7 @@ resource "aws_security_group" "bastion_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["77.222.231.103/32"]
+    cidr_blocks = ["YOUR_PUBLIC_IP/32"]  # Replace with your public IP
   }
 
   tags = {
@@ -61,7 +61,7 @@ resource "aws_instance" "bastion" {
   instance_type = "t2.micro"
   key_name      = "vockey"
   subnet_id     = aws_subnet.pub-sub.id
-  security_group_ids = [aws_security_group.bastion_sg.id]
+  security_group_names = [aws_security_group.bastion_sg.name]
 
   tags = {
     Name = "bastion"
@@ -101,7 +101,7 @@ resource "aws_instance" "app_instance" {
   ami           = "ami-08e637cea2f053dfa"
   instance_type = "t2.micro"
   subnet_id     = aws_subnet.priv-sub.id
-  security_group_ids = [aws_security_group.app_sg.id]
+  security_group_names = [aws_security_group.app_sg.name]
   key_name      = "vockey"
 
   tags = {
@@ -114,7 +114,7 @@ resource "aws_launch_configuration" "app_lc" {
   image_id             = "ami-08e637cea2f053dfa"
   instance_type        = "t2.micro"
   key_name             = "vockey"
-  security_groups      = [aws_security_group.app_sg.id]
+  security_groups      = [aws_security_group.app_sg.name]
 
   lifecycle {
     create_before_destroy = true
@@ -126,7 +126,7 @@ resource "aws_autoscaling_group" "app_asg" {
   max_size             = 4
   min_size             = 1
   vpc_zone_identifier = [aws_subnet.priv-sub.id]
-  launch_configuration = aws_launch_configuration.app_lc.id
+  launch_configuration = aws_launch_configuration.app_lc.name
 }
 
 resource "aws_lb" "app_lb" {
@@ -147,6 +147,13 @@ resource "aws_lb_listener" "app_lb_listener" {
     target_group_arn = aws_lb_target_group.app_tg.arn
     type             = "forward"
   }
+}
+
+resource "aws_lb_target_group" "app_tg" {
+  name     = "app-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.vpc.id
 }
 
 resource "aws_db_subnet_group" "my_db_subnet_group" {
